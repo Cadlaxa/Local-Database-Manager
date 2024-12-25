@@ -21,25 +21,12 @@ Java local database manager and data editor that uses CSV files for storing and 
 
 - `Payment (Debit/Credit) Table`
    - PaymentMethod
-   - ProductID (Primary Key)
-   - ItemName
-   - Price
-   - GroceryType
-   - CategoryType
-   - ItemNo
-   - SupplierID (Foreign Key)
-
-- `Employees`
-    - EmployeeID (Primary Key)
-    - FirstName
-    - LastName
-    - Role
+   - ProductID (Foreign Key)
 
 - `OrderID (Primary Key)`
     - CustomerName
-    - CustomerContact-
+    - CustomerContact
     - OrderDate
-    - EmployeeID (Foreign Key)
     - OrderDetailID (Foreign Key)
 
 - `OrderDetailID (Primary Key)`
