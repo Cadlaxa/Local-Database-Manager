@@ -265,7 +265,7 @@ public class PaymentSystem {
 
     // Save payment details to the appropriate file
     private static void savePaymentDetails(String paymentMethod, Item item) {
-        String header = "PaymentMethod,ProductID,ItemName,Price,GroceryType,CategoryType,ItemNo,DatePayed";;
+        String header = "PaymentMethod,ProductID,DatePayed";;
         String record = paymentMethod + "," + item.toRawString() + "," + generateCurrentTimestamp();
         String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
 
