@@ -1,4 +1,4 @@
-package com.example;
+package com.database_manager;
 
 import java.io.*;
 import java.util.*;
@@ -54,22 +54,23 @@ public class PaymentSystem {
 
     public static void main(String[] args) {
         while (true) {
-            System.out.println(BOLD + "\n--- Payment Management System ---" + RESET);
+            System.out.println(BOLD + "\n--- Item Management System ---" + RESET);
             System.out.println(GREEN + "1. Add Item" + RESET);
             System.out.println(YELLOW + "2. View All Items (Counter check)" + RESET);
             System.out.println(CYAN + "3. View Items by ProductID" + RESET);
             System.out.println(BLUE + "4. Update Items" + RESET);
             System.out.println(PURPLE + "5. Void Items" + RESET);
-            System.out.println(BOLD + "\n----- Payment -----" + RESET);
+            System.out.println(BOLD + "\n----- Payment System -----" + RESET);
             System.out.println(GREEN + "6. Make Payment (Debit or Credit)" + RESET);
-            System.out.println(BOLD + "\n----- Table Management -----" + RESET);
+            System.out.println(BOLD + "\n----- Table Management System -----" + RESET);
             System.out.println(YELLOW + "7. Create Table" + RESET);
             System.out.println(CYAN + "8. Edit Table" + RESET);
             System.out.println(BLUE + "9. Create ViewTable" + RESET);
             System.out.println(PURPLE + "10. Delete Table" + RESET);
-            System.out.println(GREEN + "11. Start Local Server" + RESET);
-            System.out.println(YELLOW + "12. End Local Server" + RESET);
-            System.out.println(RED + "13. Exit" + RESET);
+            System.out.println(GREEN + "11. View Table Data" + RESET);
+            System.out.println(YELLOW + "12. Start Local Server" + RESET);
+            System.out.println(CYAN + "13. End Local Server" + RESET);
+            System.out.println(RED + "14. Exit" + RESET);
             System.out.print("\n" + BOLD + "Choose an option: " + RESET);
 
             int choice = -1; // Default invalid value
@@ -116,10 +117,13 @@ public class PaymentSystem {
                     deleteTable();
                     break;
                 case 11:
+                    viewTableData();
+                    break;
+                case 12:
                     LocalServer.maybeStartServer(FOLDER);
                     serverRunning = true;
                     break;
-                case 12:
+                case 13:
                     if (serverRunning) {
                         System.out.print(BOLD + YELLOW + "Do you want to stop the server before exiting? (y/n): " + RESET);
                         String stopServer = scanner.nextLine().trim().toLowerCase();
@@ -130,7 +134,7 @@ public class PaymentSystem {
                     }
                     System.out.println("\n" + RED + BOLD + "Ending the server..." + RESET);
                     break;
-                case 13:
+                case 14:
                     System.out.println("\n" + RED + BOLD + "Exiting..." + RESET);
                     return;
                 default:
@@ -138,6 +142,106 @@ public class PaymentSystem {
                     break;
             }
         }
+    }
+
+    private static void viewTableData() {
+        // List available files in the folder
+        List<String> fileNames = listFilesInOutputFolder();
+        if (fileNames.isEmpty()) {
+            System.out.println(RED + BOLD + "No files found in the output folder." + RESET);
+            return;
+        }
+        System.out.print(YELLOW + BOLD + "\nEnter the table index or name to view: " + RESET);
+        String input = scanner.nextLine().trim();
+        if (isCancelCommand(input)) {
+            System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+            return;
+        }
+    
+        String tableName;
+        if (input.matches("\\d+")) { // If the input is numeric
+            int index = Integer.parseInt(input) - 1; // Convert to zero-based index
+            if (index < 0 || index >= fileNames.size()) {
+                System.out.println(RED + "Invalid index. Please select a valid table index." + RESET);
+                return;
+            }
+            tableName = fileNames.get(index);
+        } else {
+            tableName = input + ".csv"; // Treat input as a file name
+        }
+    
+        File file = new File(FOLDER + tableName);
+        if (!file.exists()) {
+            System.out.println(RED + "Table (CSV file) '" + tableName + "' does not exist. Please check the name and try again." + RESET);
+            return;
+        }
+    
+        List<List<String>> tableData = readTableData(file.getPath());
+        if (tableData.isEmpty()) {
+            System.out.println(RED + BOLD + "The table is empty." + RESET);
+            return;
+        }
+    
+        // Display table headers in color
+        System.out.println(BOLD + "\n--- Table Data ---" + RESET);
+        List<String> headers = tableData.get(0);
+
+        // Display each row with the corresponding header name
+        for (int i = 1; i < tableData.size(); i++) { 
+            List<String> row = tableData.get(i);
+
+            // Loop through each header and data pair using switch-case
+            for (int j = 0; j < headers.size(); j++) {
+                String data = row.get(j);
+
+                // Color code based on the column index
+                switch (j % 6) {
+                    case 0: // (First column)
+                        System.out.print(BOLD + YELLOW + headers.get(j) + ": " + RESET + YELLOW + data + ", " + RESET);
+                        break;
+                    case 1: //(Second column)
+                        System.out.print(BOLD + GREEN + headers.get(j) + ": " + RESET + GREEN + data + ", " + RESET);
+                        break;
+                    case 2: // (Third column)
+                        System.out.print(BOLD + CYAN + headers.get(j) + ": " + RESET + CYAN + data + ", " + RESET);
+                        break;
+                    case 3: // (Fourth column)
+                        System.out.print(BOLD + BLUE + headers.get(j) + ": " + RESET + BLUE + data + ", " + RESET);
+                        break;
+                    case 4: // (Fifth column)
+                        System.out.print(BOLD + PURPLE + headers.get(j) + ": " + RESET + PURPLE + data + ", " + RESET);
+                        break;
+                    case 5: // (Sixth column)
+                        System.out.print(BOLD + RED + headers.get(j) + ": " + RESET + RED + data + ", " + RESET);
+                        break;
+                        // loops from 1st column for 6th column
+                    default:
+                        System.out.print(headers.get(j) + ": " + data + ", ");
+                        break;
+                }
+            }
+            System.out.println();  // Move to the next line after a row
+        }
+    }
+    
+    private static List<List<String>> readTableData(String filePath) {
+        List<List<String>> tableData = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            boolean isFirstLine = true;
+    
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                List<String> row = new ArrayList<>(Arrays.asList(parts));
+                if (isFirstLine) {
+                    isFirstLine = false; // Skip the header
+                }
+                tableData.add(row);
+            }
+        } catch (IOException e) {
+            System.out.println("\n" + RED + BOLD + "An error occurred while reading the file." + RESET);
+        }
+        return tableData;
     }
 
     private static void createTable() {
@@ -155,9 +259,9 @@ public class PaymentSystem {
             System.out.println(RED + BOLD + "Operation cancelled." + RESET);
             return;
         }
-        
-        File file = new File(FOLDER + tableName);
     
+        File file = new File(FOLDER + tableName);
+        
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             writer.write(headers);
             writer.newLine();
@@ -179,7 +283,16 @@ public class PaymentSystem {
                         System.out.println(RED + BOLD + "Operation cancelled." + RESET);
                         return;
                     }
-                    writer.write(data);
+    
+                    // Replace blank data with "NULL"
+                    String[] fields = data.split(",");
+                    for (int i = 0; i < fields.length; i++) {
+                        if (fields[i].trim().isEmpty()) {
+                            fields[i] = "NULL";
+                        }
+                    }
+                    String formattedData = String.join(",", fields);
+                    writer.write(formattedData);
                     writer.newLine();
                     System.out.println(GREEN + "Data added to the table." + RESET);
                 } else if (response.equalsIgnoreCase("no") || response.equalsIgnoreCase("n")) {
@@ -202,7 +315,7 @@ public class PaymentSystem {
             System.out.println(RED + BOLD + "Operation cancelled." + RESET);
             return;
         }
-        
+    
         String tableName;
         if (input.matches("\\d+")) { // If the input is numeric
             int index = Integer.parseInt(input) - 1; // Convert to zero-based index
@@ -254,21 +367,23 @@ public class PaymentSystem {
                 System.out.println("Row " + i + ": " + lines.get(i));
             }
     
-            System.out.print(YELLOW + BOLD + "Do you want to edit or add data? (yes/no): " + RESET);
+            System.out.print(YELLOW + BOLD + "\nDo you want to edit or add data? (yes/no): " + RESET);
             String editData = scanner.nextLine().trim().toLowerCase();
             if (isCancelCommand(editData)) {
                 System.out.println(RED + BOLD + "Operation cancelled." + RESET);
                 return;
             }
             if (editData.equalsIgnoreCase("yes") || editData.equalsIgnoreCase("y")) {
-                System.out.println(CYAN + "Enter the row number to edit or add (e.g., 1 for the first row, " + (lines.size() + 1) + " to add a new row): " + RESET);
+                System.out.println(CYAN + "\nEnter the row number to edit or add (e.g., 1 for the first row, " + (lines.size()) + " to add a new row): " + RESET);
                 int rowNumber = Integer.parseInt(scanner.nextLine().trim());
-                
-                if (rowNumber < 1 || rowNumber > lines.size() + 1) {
-                    System.out.println(RED + "Invalid row number. Please enter a number between 1 and " + (lines.size() + 1) + "." + RESET);
+    
+                // Validate the row number (1-based index)
+                if (rowNumber < 1 || rowNumber > lines.size()) {
+                    System.out.println(RED + "Invalid row number. Please enter a number between 1 and " + (lines.size()) + "." + RESET);
                     return;
                 }
-    
+                System.out.println(GREEN + BOLD + "\nHeaders: " + headers + RESET);
+                
                 System.out.println(CYAN + "Enter the new data for Row " + rowNumber + ", aligned with headers: " + RESET);
                 String newData = scanner.nextLine().trim();
                 if (isCancelCommand(newData)) {
@@ -276,14 +391,26 @@ public class PaymentSystem {
                     return;
                 }
     
-                if (rowNumber == lines.size() + 1) {
-                    // Add new row
-                    lines.add(newData);
-                    System.out.println(GREEN + "Row " + rowNumber + " added successfully." + RESET);
-                } else {
+                // Replace blank data with "NULL"
+                String[] fields = newData.split(",");
+                for (int i = 0; i < fields.length; i++) {
+                    if (fields[i].trim().isEmpty()) {
+                        fields[i] = "NULL";
+                    }
+                }
+                String formattedData = String.join(",", fields);
+    
+                // If row number is larger than the current rows, add a new row
+                if (rowNumber == lines.size()) {
+                    // Add new row at the end
+                    lines.add(formattedData);
+                    System.out.println(GREEN + "New Row " + rowNumber + " added successfully." + RESET);
+                } else if (rowNumber <= lines.size()) {
                     // Edit existing row
-                    lines.set(rowNumber, newData);
+                    lines.set(rowNumber, formattedData);
                     System.out.println(GREEN + "Row " + rowNumber + " updated successfully." + RESET);
+                } else {
+                    System.out.println(RED + "Invalid row number." + RESET);
                 }
             }
     
