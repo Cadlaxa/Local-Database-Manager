@@ -21,6 +21,7 @@ Java local database manager and data editor that uses CSV files for storing and 
 
 - `Payment (Debit/Credit) Table`
    - PaymentMethod
+   - PaymentID (Primary Key)
    - ProductID (Primary Key)
    - ItemName
    - Price
@@ -37,5 +38,5 @@ Java local database manager and data editor that uses CSV files for storing and 
     - OrderDetailID (Foreign Key)
 
 - `OrderDetailID (Primary Key)` **`Work-in-progress`**
-    - OrderID (Foreign Key)
     - ProductID (Foreign Key)
+    - PaymentID (Foreign)

@@ -47,7 +47,7 @@ public class PaymentSystem {
 
     // Helper method to check for cancel command
     public static boolean isCancelCommand(String input) {
-        return input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("esc");
+        return input.equalsIgnoreCase("cancel") || input.equalsIgnoreCase("esc") || input.equalsIgnoreCase("exit");
     }
 
     private static boolean serverRunning = false;
@@ -63,11 +63,13 @@ public class PaymentSystem {
             System.out.println(BOLD + "\n----- Payment -----" + RESET);
             System.out.println(GREEN + "6. Make Payment (Debit or Credit)" + RESET);
             System.out.println(BOLD + "\n----- Table Management -----" + RESET);
-            System.out.println(YELLOW + "7. Create ViewTable" + RESET);
-            System.out.println(CYAN + "8. Delete Table" + RESET);
-            System.out.println(BLUE + "9. Start Local Server" + RESET);
-            System.out.println(PURPLE + "10. End Local Server" + RESET);
-            System.out.println(RED + "11. Exit" + RESET);
+            System.out.println(YELLOW + "7. Create Table" + RESET);
+            System.out.println(CYAN + "8. Edit Table" + RESET);
+            System.out.println(BLUE + "9. Create ViewTable" + RESET);
+            System.out.println(PURPLE + "10. Delete Table" + RESET);
+            System.out.println(GREEN + "11. Start Local Server" + RESET);
+            System.out.println(YELLOW + "12. End Local Server" + RESET);
+            System.out.println(RED + "13. Exit" + RESET);
             System.out.print("\n" + BOLD + "Choose an option: " + RESET);
 
             int choice = -1; // Default invalid value
@@ -102,27 +104,33 @@ public class PaymentSystem {
                     processPayment();
                     break;
                 case 7:
-                    createViewTable();
+                    createTable();
                     break;
                 case 8:
-                    deleteTable();
+                    editTable();
                     break;
                 case 9:
+                    createViewTable();
+                    break;
+                case 10:
+                    deleteTable();
+                    break;
+                case 11:
                     LocalServer.maybeStartServer(FOLDER);
                     serverRunning = true;
                     break;
-                case 10:
+                case 12:
                     if (serverRunning) {
                         System.out.print(BOLD + YELLOW + "Do you want to stop the server before exiting? (y/n): " + RESET);
                         String stopServer = scanner.nextLine().trim().toLowerCase();
-                        if (stopServer.equals("y")) {
+                        if (stopServer.equalsIgnoreCase("y") || stopServer.equalsIgnoreCase("yes")) {
                             LocalServer.stopServer();
                             serverRunning = false;
                         }
                     }
                     System.out.println("\n" + RED + BOLD + "Ending the server..." + RESET);
                     break;
-                case 11:
+                case 13:
                     System.out.println("\n" + RED + BOLD + "Exiting..." + RESET);
                     return;
                 default:
@@ -132,6 +140,162 @@ public class PaymentSystem {
         }
     }
 
+    private static void createTable() {
+        System.out.print(CYAN + BOLD + "Enter the name of the table (CSV file) to create: " + RESET);
+        String tableName = scanner.nextLine().trim();
+        if (isCancelCommand(tableName)) {
+            System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+            return;
+        }
+        tableName += ".csv";
+        
+        System.out.println(YELLOW + BOLD + "Enter the column headers, separated by commas (e.g., Name,Age,Address): " + RESET);
+        String headers = scanner.nextLine().trim();
+        if (isCancelCommand(headers)) {
+            System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+            return;
+        }
+        
+        File file = new File(FOLDER + tableName);
+    
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(headers);
+            writer.newLine();
+            System.out.println(GREEN + "Table (CSV file) '" + tableName + "' created successfully." + RESET);
+            System.out.println(GREEN + BOLD + "\nHeaders: " + headers + RESET);
+    
+            // Optionally, add data immediately
+            while (true) {
+                System.out.print(YELLOW + BOLD + "Do you want to add data to the table now? (yes/no): " + RESET);
+                String response = scanner.nextLine().trim().toLowerCase();
+                if (isCancelCommand(response)) {
+                    System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                    return;
+                }
+                if (response.equalsIgnoreCase("yes") || response.equalsIgnoreCase("y")) {
+                    System.out.println(CYAN + "Enter data for the columns (aligned with headers), separated by commas: " + RESET);
+                    String data = scanner.nextLine().trim();
+                    if (isCancelCommand(data)) {
+                        System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                        return;
+                    }
+                    writer.write(data);
+                    writer.newLine();
+                    System.out.println(GREEN + "Data added to the table." + RESET);
+                } else if (response.equalsIgnoreCase("no") || response.equalsIgnoreCase("n")) {
+                    System.out.println(GREEN + BOLD + "You can add data later by editing the table." + RESET);
+                    break;
+                } else {
+                    System.out.println(RED + "Invalid input. Please enter 'yes' or 'no'." + RESET);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println(RED + BOLD + "Error creating table: " + e.getMessage() + RESET);
+        }
+    }
+    
+    private static void editTable() {
+        List<String> fileNames = listFilesInOutputFolder();
+        System.out.print(YELLOW + BOLD + "\nEnter the table index or name to edit: " + RESET);
+        String input = scanner.nextLine().trim();
+        if (isCancelCommand(input)) {
+            System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+            return;
+        }
+        
+        String tableName;
+        if (input.matches("\\d+")) { // If the input is numeric
+            int index = Integer.parseInt(input) - 1; // Convert to zero-based index
+            if (index < 0 || index >= fileNames.size()) {
+                System.out.println(RED + "Invalid index. Please select a valid table index." + RESET);
+                return;
+            }
+            tableName = fileNames.get(index);
+        } else {
+            tableName = input + ".csv"; // Treat input as a file name
+        }
+    
+        File file = new File(FOLDER + tableName);
+        if (!file.exists()) {
+            System.out.println(RED + "Table (CSV file) '" + tableName + "' does not exist. Please check the name and try again." + RESET);
+            return;
+        }
+    
+        try {
+            List<String> lines = Files.readAllLines(file.toPath());
+            if (lines.isEmpty()) {
+                System.out.println(RED + "Table is empty. Cannot edit." + RESET);
+                return;
+            }
+    
+            String headers = lines.get(0); // First line contains the headers
+            System.out.println(GREEN + BOLD + "\nCurrent headers: " + headers + RESET);
+    
+            System.out.print(YELLOW + BOLD + "Do you want to modify the headers? (yes/no): " + RESET);
+            String modifyHeaders = scanner.nextLine().trim().toLowerCase();
+            if (isCancelCommand(modifyHeaders)) {
+                System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                return;
+            }
+            if (modifyHeaders.equalsIgnoreCase("yes") || modifyHeaders.equalsIgnoreCase("y")) {
+                System.out.print(CYAN + BOLD + "\nEnter the new headers, separated by commas: " + RESET);
+                String newHeaders = scanner.nextLine();
+                if (isCancelCommand(newHeaders)) {
+                    System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                    return;
+                }
+                lines.set(0, newHeaders);
+                System.out.println(GREEN + "Headers updated successfully." + RESET);
+            }
+    
+            // Display data for editing
+            System.out.println(GREEN + BOLD + "\nCurrent data in the table:" + RESET);
+            for (int i = 1; i < lines.size(); i++) {
+                System.out.println("Row " + i + ": " + lines.get(i));
+            }
+    
+            System.out.print(YELLOW + BOLD + "Do you want to edit or add data? (yes/no): " + RESET);
+            String editData = scanner.nextLine().trim().toLowerCase();
+            if (isCancelCommand(editData)) {
+                System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                return;
+            }
+            if (editData.equalsIgnoreCase("yes") || editData.equalsIgnoreCase("y")) {
+                System.out.println(CYAN + "Enter the row number to edit or add (e.g., 1 for the first row, " + (lines.size() + 1) + " to add a new row): " + RESET);
+                int rowNumber = Integer.parseInt(scanner.nextLine().trim());
+                
+                if (rowNumber < 1 || rowNumber > lines.size() + 1) {
+                    System.out.println(RED + "Invalid row number. Please enter a number between 1 and " + (lines.size() + 1) + "." + RESET);
+                    return;
+                }
+    
+                System.out.println(CYAN + "Enter the new data for Row " + rowNumber + ", aligned with headers: " + RESET);
+                String newData = scanner.nextLine().trim();
+                if (isCancelCommand(newData)) {
+                    System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+                    return;
+                }
+    
+                if (rowNumber == lines.size() + 1) {
+                    // Add new row
+                    lines.add(newData);
+                    System.out.println(GREEN + "Row " + rowNumber + " added successfully." + RESET);
+                } else {
+                    // Edit existing row
+                    lines.set(rowNumber, newData);
+                    System.out.println(GREEN + "Row " + rowNumber + " updated successfully." + RESET);
+                }
+            }
+    
+            // Save changes back to the file
+            Files.write(file.toPath(), lines);
+            System.out.println(GREEN + "Changes saved to '" + tableName + "'." + RESET);
+    
+        } catch (IOException | NumberFormatException e) {
+            System.out.println(RED + BOLD + "Error editing table: " + e.getMessage() + RESET);
+        }
+    }
+    
     // Method to process payment
     private static void processPayment() {
         // Select multiple items using the helper method
@@ -1153,7 +1317,7 @@ class LocalServer {
             System.out.print(BOLD + GREEN + "Do you want to start the local server to view CSV data? (y/n): " + RESET);
             String userChoice = new BufferedReader(new InputStreamReader(System.in)).readLine().trim().toLowerCase();
 
-            if (userChoice.equals("y")) {
+            if (userChoice.equalsIgnoreCase("y") || userChoice.equalsIgnoreCase("yes")) {
                 System.out.print(BOLD + CYAN + "Enter the port number to start the server (default 8080): " + RESET);
                 String portInput = new BufferedReader(new InputStreamReader(System.in)).readLine().trim();
                 int port = portInput.isEmpty() ? 8080 : Integer.parseInt(portInput);
