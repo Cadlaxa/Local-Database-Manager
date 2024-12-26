@@ -1,3 +1,6 @@
-ProductID,ItemName,Price,GroceryType,CategoryType,ItemNo,SupplierID
-1,pineapple,2715.00,produce,fruit,20,2
-2,toblerone,246.00,candies,chocolate,3,3
+ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid
+1,pineapple,2715.0,produce,fruit,20,2,false
+2,toblerone,246.0,candies,chocolate,3,3,false
+3,strawberry,675.75,produce,fruit,17,4,false
+4,A4 bond paper,75.0,school section,paper,25,5,false
+5,iPhone 16 Pro Max (blue),84990.0,gadgets,phone,1,1,true

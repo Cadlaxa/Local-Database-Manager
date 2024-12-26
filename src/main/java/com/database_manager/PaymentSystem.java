@@ -482,12 +482,43 @@ public class PaymentSystem {
                     System.out.println(RED + BOLD + "Invalid payment option." + RESET);
                     break;
             }
-            removeItemFromCart(item);
+           // removeItemFromCart(item);
+           markItemAsPaid(item);
         }
         updateItemIdsAfterPayment();
     }
+
+    private static void markItemAsPaid(Item item) {
+        List<Item> allItems = readAllItems();
+        List<Item> updatedItems = new ArrayList<>();
+    
+        // Add the header first
+        List<String> headers = readHeadersFromFile(FILE_PATH);
+    
+        for (Item i : allItems) {
+            if (i.getId() == item.getId()) {
+                i.setIsPaid(true);  // Set the IsPaid field to True for the selected item
+            }
+            updatedItems.add(i);
+        }
+    
+        // Rewrite the cart.csv file with the updated list
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_PATH))) {
+            writer.write(String.join(",", headers));
+            writer.newLine();
+    
+            for (Item i : updatedItems) {
+                writer.write(i.toRawString());
+                writer.newLine();
+            }
+            System.out.println(GREEN + "Item " + item.getName() + " has been marked as paid." + RESET);
+        } catch (IOException e) {
+            System.out.println(RED + BOLD + "Error marking item as paid." + RESET);
+        }
+    }
     
     // Helper method to remove an item from the cart.csv
+    /*
     private static void removeItemFromCart(Item item) {
         List<Item> allItems = readAllItems();
         List<Item> updatedItems = new ArrayList<>();
@@ -514,7 +545,7 @@ public class PaymentSystem {
             System.out.println(RED + BOLD + "Error removing item from cart." + RESET);
         }
     }
-
+    */
     private static void processDebitPayment(Item item) {
         String paymentMethod = "Debit Card";
         savePaymentDetails(paymentMethod, item);
@@ -556,8 +587,8 @@ public class PaymentSystem {
 
     // Save payment details to the appropriate file
     private static void savePaymentDetails(String paymentMethod, Item item) {
-        String header = "PaymentMethod,ProductID,DatePayed";;
-        String record = paymentMethod + "," + item.toRawString() + "," + generateCurrentTimestamp();
+        String header = "PaymentMethod,PaymentID,ProductID,DatePayed";;
+        String record = paymentMethod + "," + generatePaymentID(paymentMethod) + "," + item.getId() + "," + generateCurrentTimestamp();
         String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
@@ -573,6 +604,36 @@ public class PaymentSystem {
         } catch (IOException e) {
             System.out.println(RED + BOLD + "Error saving payment details." + RESET);
         }
+    }
+
+    // Method to generate unique PaymentID based on payment method
+    private static String generatePaymentID(String paymentMethod) {
+        // Read the current file to count the number of records and determine the last PaymentID
+        String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
+        int currentPaymentID = 0;
+
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(filePath));
+
+            // If the file has data, we parse the last PaymentID
+            if (lines.size() > 1) { // Skip the header row
+                String lastLine = lines.get(lines.size() - 1);
+                String[] columns = lastLine.split(",");
+                String lastPaymentID = columns[1];
+                currentPaymentID = Integer.parseInt(lastPaymentID.split("-")[1]);
+            }
+        } catch (IOException e) {
+            System.out.println(RED + "Error reading payment records to generate PaymentID." + RESET);
+        }
+
+        // Generate the new PaymentID
+        currentPaymentID++;
+        if (paymentMethod.equals("Debit Card")) {
+            return "DEB-" + currentPaymentID;
+        } else if (paymentMethod.equals("Credit Card")) {
+            return "CRED-" + currentPaymentID;
+        }
+        return "UNKNOWN";
     }
 
     private static void createItem() {
@@ -612,10 +673,10 @@ public class PaymentSystem {
         } else if (price instanceof Double) {
             finalPrice = new BigDecimal((double) price * multiplier).setScale(2, RoundingMode.HALF_UP);
         }
-        // grocery_type Input & Cancel Check
-        System.out.print(BOLD + GREEN + "Enter grocery type: " + RESET);
-        String grocery_type = scanner.nextLine();
-        if (isCancelCommand(grocery_type)) {
+        // Item_type Input & Cancel Check
+        System.out.print(BOLD + GREEN + "Enter Item type: " + RESET);
+        String Item_type = scanner.nextLine();
+        if (isCancelCommand(Item_type)) {
             System.out.println(RED + BOLD + "Operation cancelled." + RESET);
             return;
         }
@@ -633,10 +694,10 @@ public class PaymentSystem {
             System.out.println(RED + "No supplier chosen. Operation cancelled." + RESET);
             return;
         }
-
+        boolean isPaid = false;
         // Creating the Item object
         int id = nextId++;
-        Item item = new Item(id, name, finalPrice, grocery_type, category, itemNo, chosenSupplier.supplierId);
+        Item item = new Item(id, name, finalPrice, Item_type, category, itemNo, chosenSupplier.supplierId,isPaid);
         // Append Item to the file
         appendItemToFile(item);
         System.out.println("\n" + GREEN + "Created: " + item + RESET);
@@ -761,9 +822,9 @@ public class PaymentSystem {
             newFinalPrice = new BigDecimal((double) newprice * multiplier).setScale(2, RoundingMode.HALF_UP);
         }
         
-        System.out.print(BOLD + CYAN + "Enter new grocery type (current: " + ItemToUpdate.getgrocery_type() + "): " + RESET);
-        String newgrocery_type = scanner.nextLine();
-        if (isCancelCommand(newgrocery_type)) {
+        System.out.print(BOLD + CYAN + "Enter new Item type (current: " + ItemToUpdate.getItem_type() + "): " + RESET);
+        String newItem_type = scanner.nextLine();
+        if (isCancelCommand(newItem_type)) {
             System.out.println(RED+ BOLD + "Operation cancelled." + RESET);
             return;
         }
@@ -779,7 +840,8 @@ public class PaymentSystem {
             System.out.println(RED + "No supplier chosen. Operation cancelled." + RESET);
             return;
         }
-        Item updatedItem = new Item(id, newName, newFinalPrice, newgrocery_type, newcategory, itemNo, chosenSupplier.supplierId);
+        boolean isPaid = false;
+        Item updatedItem = new Item(id, newName, newFinalPrice, newItem_type, newcategory, itemNo, chosenSupplier.supplierId,isPaid);
         // Replace the updated Item in the list
         Items.replaceAll(p -> p.getId() == id ? updatedItem : p);
 
@@ -864,7 +926,7 @@ public class PaymentSystem {
     
             for (int i = 0; i < items.size(); i++) {
                 Item item = items.get(i);
-                items.set(i, new Item(i + 1, item.getName(), item.getprice(), item.getgrocery_type(), item.getcategory(), item.getItemNo(), item.getsupplerID()));
+                items.set(i, new Item(i + 1, item.getName(), item.getprice(), item.getItem_type(), item.getcategory(), item.getItemNo(), item.getsupplerID(), item.getisPaid()));
             }
             writeAllItemsToFile(items);
     
@@ -1241,10 +1303,11 @@ class Item {
     private int id;
     private final String name;
     private final Object finalPrice;
-    private final String grocery_type;
+    private final String Item_type;
     private final String category;
     private final String itemNo;
     private final int supplierId;
+    private boolean isPaid = false;
 
     // Color codes
     private static final String RESET = "\u001B[0m";
@@ -1256,36 +1319,42 @@ class Item {
     private static final String PURPLE = "\u001B[35m";
     private static final String YELLOW = "\u001B[33m";
 
-    public Item(int id, String name, Object finalPrice, String grocery_type, String category, String itemNo, int supplierId) {
+    public Item(int id, String name, Object finalPrice, String Item_type, String category, String itemNo, int supplierId, boolean isPaid) {
         this.id = id;
         this.name = name;
         this.finalPrice = finalPrice;
-        this.grocery_type = grocery_type;
+        this.Item_type = Item_type;
         this.category = category;
         this.itemNo = itemNo;
         this.supplierId = supplierId;
+        this.isPaid = isPaid;
         //this.date = date;
     }
     public void setId(int id) {
         this.id = id;
     }
+    public void setIsPaid(boolean isPaid) {
+        this.isPaid = isPaid;
+    }
     public int getId() { return id; }
     public String getName() { return name; }
     public Object getprice() { return finalPrice; }
-    public String getgrocery_type() { return grocery_type; }
+    public String getItem_type() { return Item_type; }
     public String getcategory() { return category; }
     public String getItemNo() { return itemNo; }
     public int getsupplerID () { return supplierId; }
+    public boolean getisPaid() { return isPaid; }
     //public String getdate() { return date; }
     @Override
     public String toString() {
         return BOLD + YELLOW + "ProductID: " + id + RESET +
                ", " + GREEN + "Item: " + name + RESET +
                ", " + YELLOW + "price: " + finalPrice + RESET +
-               ", " + CYAN + "grocery_type: " + grocery_type + RESET +
+               ", " + CYAN + "Item_type: " + Item_type + RESET +
                ", " + BLUE + "category: " + category + RESET +
                ", " + PURPLE + "ItemNo: " + itemNo + RESET +
-               ", " + RED + "SupplierID: " + supplierId + RESET;
+               ", " + RED + "SupplierID: " + supplierId + RESET +
+               ", " + GREEN + "isPaid: " + isPaid + RESET;
                //", " + PURPLE + "DateTime: " + date + RESET;
     }
 
@@ -1307,20 +1376,21 @@ class Item {
             // If Double parsing fails, try Integer
             price = Integer.parseInt(parts[2]);
         }
-        String grocery_type = parts[3];
+        String Item_type = parts[3];
         String category = parts[4];
         String itemNo = parts[5];
         int supplierId = Integer.parseInt(parts[6].trim());
+        boolean isPaid = Boolean.parseBoolean(parts[7].trim());
         //String date = parts[6];
-        return new Item(id, name, price, grocery_type, category, itemNo, supplierId);
+        return new Item(id, name, price, Item_type, category, itemNo, supplierId, isPaid);
     }
 
     // Converts Item to a raw CSV format (no colors, just data)
     public String toRawString() {
-        return id + "," + name + "," + finalPrice + "," + grocery_type + "," + category + "," + itemNo + "," + supplierId;
+        return id + "," + name + "," + finalPrice + "," + Item_type + "," + category + "," + itemNo + "," + supplierId + "," + isPaid;
     }
     public static String getHeaders() {
-        return "ProductID,ItemName,Price,GroceryType,CategoryType,ItemNo,SupplierID";
+        return "ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid";
     }
 }
 

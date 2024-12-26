@@ -5,14 +5,15 @@ Java local database manager and data editor that uses CSV files for storing and 
 ---
 ## Database Schema Design
 ### Tables
-- `Products (Cart) Table (temporary table)`
+- `Products (Cart) Table`
    - ProductID (Primary Key)
    - ItemName
    - Price
-   - GroceryType
+   - ItemType
    - CategoryType
    - ItemNo
    - SupplierID (Foreign Key)
+   - isPaid
 
 - `Suppliers Table`
     - SupplierID (Primary Key)
@@ -22,13 +23,7 @@ Java local database manager and data editor that uses CSV files for storing and 
 - `Payment (Debit/Credit) Table`
    - PaymentMethod
    - PaymentID (Primary Key)
-   - ProductID (Primary Key)
-   - ItemName
-   - Price
-   - GroceryType
-   - CategoryType
-   - ItemNo
-   - SupplierID (Foreign Key)
+   - ProductID (Foreign Key)
    - DatePayed
 
 - `OrderID (Primary Key)` **`Work-in-progress`**
