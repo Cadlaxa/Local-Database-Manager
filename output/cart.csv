@@ -4,4 +4,8 @@ ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid
 3,strawberry,675.75,produce,fruit,17,4,false
 4,A4 bond paper,75.0,school section,paper,25,5,false
 5,iPhone 16 Pro Max (blue),84990.0,gadgets,phone,1,1,true
-6,garlic bread,287.50,bread,bread,5,9,false
+6,garlic bread,287.5,bread,bread,5,9,false
+7,apple,105.0,produce,fruit,3,2,false
+8,sweet corn,200.0,crop,grains,5,4,false
+9,yakult (6 pack),75.0,drinks,probiotics,1,4,false
+10,chocolate crinkles,520.00,pastry,cookies,20,9,false
