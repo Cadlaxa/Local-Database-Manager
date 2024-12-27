@@ -342,7 +342,7 @@ public class PaymentSystem {
             }
     
             String headers = lines.get(0); // First line contains the headers
-            System.out.println(GREEN + BOLD + "\nCurrent headers: " + headers + RESET);
+            System.out.println(GREEN + BOLD + "Current headers: " + headers + RESET);
     
             System.out.print(YELLOW + BOLD + "Do you want to modify the headers? (yes/no): " + RESET);
             String modifyHeaders = scanner.nextLine().trim().toLowerCase();
@@ -367,14 +367,14 @@ public class PaymentSystem {
                 System.out.println("Row " + i + ": " + lines.get(i));
             }
     
-            System.out.print(YELLOW + BOLD + "\nDo you want to edit or add data? (yes/no): " + RESET);
+            System.out.print(YELLOW + BOLD + "Do you want to edit or add data? (yes/no): " + RESET);
             String editData = scanner.nextLine().trim().toLowerCase();
             if (isCancelCommand(editData)) {
                 System.out.println(RED + BOLD + "Operation cancelled." + RESET);
                 return;
             }
             if (editData.equalsIgnoreCase("yes") || editData.equalsIgnoreCase("y")) {
-                System.out.println(CYAN + "\nEnter the row number to edit or add (e.g., 1 for the first row, " + (lines.size()) + " to add a new row): " + RESET);
+                System.out.println(CYAN + "Enter the row number to edit or add (e.g., 1 for the first row, " + (lines.size()) + " to add a new row): " + RESET);
                 int rowNumber = Integer.parseInt(scanner.nextLine().trim());
     
                 // Validate the row number (1-based index)
@@ -1587,6 +1587,7 @@ class Supplier {
     private static final String GREEN = "\u001B[32m";
     private static final String BLUE = "\u001B[34m";
     private static final String CYAN = "\u001B[36m";
+    private static final String PURPLE = "\u001B[35m";
     private static final String YELLOW = "\u001B[33m";
 
     public Supplier(int supplierId, String supplierName, String contact) {
@@ -1639,31 +1640,58 @@ class Supplier {
         return null;
     }
 
-    // Function to load suppliers from the supplier.csv file
+    // Load suppliers from file, creating the file with default content if it doesn't exist
     private static List<Supplier> loadSuppliersFromFile(String filePath) {
         List<Supplier> suppliers = new ArrayList<>();
+        File file = new File(filePath);
 
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            br.readLine(); // Skip the header
-
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length >= 3) {
-                    int supplierId = Integer.parseInt(parts[0].trim());
-                    String supplierName = parts[1].trim();
-                    String contact = parts[2].trim();
-                    suppliers.add(new Supplier(supplierId, supplierName, contact));
+        try {
+            if (!file.exists()) {
+                System.out.println(PURPLE + BOLD + "Suppliers file not found. Creating a new file with default content: " + filePath + RESET);
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                    // Write default content to the new file
+                    writer.write("SupplierID,SupplierName,Contact");
+                    writer.newLine();
+                    writer.write("1,Lax Bulangerie,0987654321");
+                    writer.newLine();
+                    writer.write("2,Viernes Freshness,0123456789");
+                    writer.newLine();
+                    writer.write("3,Ramos Supplies,0978653421");
+                    writer.newLine();
+                    writer.write("4,SM Supplies,0192837465");
+                    writer.newLine();
+                    writer.write("5,National Book Store,109221843");
+                    writer.newLine();
+                    writer.write("6,Samsung,0997765434");
+                    writer.newLine();
+                    writer.write("7,Apple,0765643566");
+                    writer.newLine();
+                    writer.write("8,Ace Hardware,09574346345");
+                    writer.newLine();
+                    writer.write("9,BreadTalk,03575674576");
+                    writer.newLine();
+                    writer.write("10,Starbucks,0945754336");
+                    writer.newLine();
                 }
             }
-        } catch (FileNotFoundException e) {
-            System.out.println(RED + "Supplier file not found: " + filePath + RESET);
-        } catch (IOException e) {
-            System.out.println(RED + "Error reading supplier file: " + e.getMessage() + RESET);
-        } catch (NumberFormatException e) {
-            System.out.println(RED + "Invalid format in supplier file. Ensure IDs are numeric." + RESET);
-        }
 
+            // Read suppliers from the file
+            List<String> lines = Files.readAllLines(file.toPath());
+            if (lines.size() > 1) { // Skip the header
+                for (int i = 1; i < lines.size(); i++) {
+                    String[] parts = lines.get(i).split(",");
+                    if (parts.length >= 3) {
+                        suppliers.add(new Supplier(
+                                Integer.parseInt(parts[0].trim()),
+                                parts[1].trim(),
+                                parts[2].trim()
+                        ));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println(RED + BOLD + "Error loading suppliers: " + e.getMessage() + RESET);
+        }
         return suppliers;
     }
 }

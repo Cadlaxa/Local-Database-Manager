@@ -4,3 +4,4 @@ ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid
 3,strawberry,675.75,produce,fruit,17,4,false
 4,A4 bond paper,75.0,school section,paper,25,5,false
 5,iPhone 16 Pro Max (blue),84990.0,gadgets,phone,1,1,true
+6,garlic bread,287.50,bread,bread,5,9,false
