@@ -59,17 +59,18 @@ public class PaymentSystem {
             System.out.println(YELLOW + "2. View All Items (Counter check)" + RESET);
             System.out.println(CYAN + "3. View Items by ProductID" + RESET);
             System.out.println(BLUE + "4. Update Items" + RESET);
-            System.out.println(PURPLE + "5. Void Items" + RESET);
+            System.out.println(PURPLE + "5. Delete Items" + RESET);
             System.out.println(BOLD + "\n----- Payment System -----" + RESET);
             System.out.println(GREEN + "6. Make Payment (Debit or Credit)" + RESET);
             System.out.println(BOLD + "\n----- Table Management System -----" + RESET);
             System.out.println(YELLOW + "7. Create Table" + RESET);
             System.out.println(CYAN + "8. Edit Table" + RESET);
             System.out.println(BLUE + "9. Create ViewTable" + RESET);
-            System.out.println(PURPLE + "10. Delete Table" + RESET);
-            System.out.println(GREEN + "11. View Table Data" + RESET);
-            System.out.println(YELLOW + "12. Start Local Server" + RESET);
-            System.out.println(CYAN + "13. End Local Server" + RESET);
+            System.out.println(PURPLE + "10. Drop Table" + RESET);
+            System.out.println(GREEN + "11. Delete Table Record" + RESET);
+            System.out.println(YELLOW + "11. View Table Data" + RESET);
+            System.out.println(CYAN + "12. Start Local Server" + RESET);
+            System.out.println(BLUE+ "13. End Local Server" + RESET);
             System.out.println(RED + "14. Exit" + RESET);
             System.out.print("\n" + BOLD + "Choose an option: " + RESET);
 
@@ -117,13 +118,16 @@ public class PaymentSystem {
                     deleteTable();
                     break;
                 case 11:
-                    viewTableData();
+                    deleteRecords();
                     break;
                 case 12:
+                    viewTableData();
+                    break;
+                case 13:
                     LocalServer.maybeStartServer(FOLDER);
                     serverRunning = true;
                     break;
-                case 13:
+                case 14:
                     if (serverRunning) {
                         System.out.print(BOLD + YELLOW + "Do you want to stop the server before exiting? (y/n): " + RESET);
                         String stopServer = scanner.nextLine().trim().toLowerCase();
@@ -134,7 +138,7 @@ public class PaymentSystem {
                     }
                     System.out.println("\n" + RED + BOLD + "Ending the server..." + RESET);
                     break;
-                case 14:
+                case 15:
                     System.out.println("\n" + RED + BOLD + "Exiting..." + RESET);
                     return;
                 default:
@@ -875,7 +879,7 @@ public class PaymentSystem {
     public static List<String> selectMultipleItemsByIndexOrName() {
         List<String> itemNames = ItemsOnCart();
         System.out.print("\n");
-        System.out.print(PURPLE+BOLD+"Enter the file names or indices (e.g. 1, 2, 3): "+RESET);
+        System.out.print(PURPLE+BOLD+"Enter the record number(s) to delete (comma-separated): "+RESET);
         String input = scanner.nextLine();
         if (isCancelCommand(input)) {
             System.out.println(RED+ BOLD + "Operation cancelled." + RESET);
@@ -937,6 +941,118 @@ public class PaymentSystem {
         }
     }
 
+    public static void deleteRecords() {
+        File folder = new File(FOLDER);
+        File[] files = folder.listFiles();
+    
+        if (files == null || files.length == 0) {
+            System.out.println(RED + BOLD + "No files found in the output folder." + RESET);
+            return;
+        }
+    
+        System.out.println(YELLOW + "Available files in the output folder:" + RESET);
+        for (int i = 0; i < files.length; i++) {
+            System.out.println((i + 1) + ". " + files[i].getName());
+        }
+    
+        System.out.print("\n" + CYAN + BOLD + "Enter the file number or name to edit: " + RESET);
+        String fileChoiceInput = scanner.nextLine().trim();
+        File chosenFile = null;
+    
+        try {
+            // Try to interpret the input as an index
+            int fileChoice = Integer.parseInt(fileChoiceInput);
+            if (fileChoice < 1 || fileChoice > files.length) {
+                System.out.println(RED + "Invalid file index." + RESET);
+                return;
+            }
+            chosenFile = files[fileChoice - 1];
+        } catch (NumberFormatException e) {
+            // If it's not an index, try to match by file name
+            for (File file : files) {
+                if (file.getName().equalsIgnoreCase(fileChoiceInput)) {
+                    chosenFile = file;
+                    break;
+                }
+            }
+            if (chosenFile == null) {
+                System.out.println(RED + "File not found: " + fileChoiceInput + RESET);
+                return;
+            }
+        }
+    
+        System.out.println(CYAN + "Selected file: " + chosenFile.getName() + RESET);
+    
+        List<String> records = readLinesFromFile(chosenFile.getPath());
+        if (records.isEmpty()) {
+            System.out.println(RED + BOLD + "No records found in the file." + RESET);
+            return;
+        }
+    
+        // Display the records (skip the header)
+        System.out.println(CYAN + "\nCurrent records in the file:" + RESET);
+        System.out.println(BOLD + records.get(0) + RESET); // Display header
+        for (int i = 1; i < records.size(); i++) {
+            System.out.println((i) + ". " + records.get(i)); // Skip the header in numbering
+        }
+    
+        // Step 4: Let the user select records to delete
+        System.out.println("\n" + YELLOW + BOLD + "Enter the record number(s) to delete (comma-separated): " + RESET);
+        String input = scanner.nextLine().trim();
+        String[] recordIndices = input.split(",");
+        Set<Integer> indicesToDelete = new HashSet<>();
+        for (String indexStr : recordIndices) {
+            try {
+                int index = Integer.parseInt(indexStr.trim());
+                if (index >= 1 && index < records.size()) { // Ensure index is valid (ignoring header)
+                    indicesToDelete.add(index);
+                } else {
+                    System.out.println(RED + "Invalid index: " + index + RESET);
+                }
+            } catch (NumberFormatException e) {
+                System.out.println(RED + "Invalid input: " + indexStr.trim() + RESET);
+            }
+        }
+    
+        if (!indicesToDelete.isEmpty()) {
+            List<String> updatedRecords = new ArrayList<>();
+            updatedRecords.add(records.get(0)); // Keep the header
+            for (int i = 1; i < records.size(); i++) {
+                if (!indicesToDelete.contains(i)) {
+                    updatedRecords.add(records.get(i));
+                }
+            }
+    
+            // Rewrite the file with updated records
+            writeLinesToFile(chosenFile.getPath(), updatedRecords);
+            System.out.println(GREEN + "Selected records deleted successfully." + RESET);
+        } else {
+            System.out.println(RED + "No valid records selected for deletion." + RESET);
+        }
+    }
+    
+    // Helper method to read lines from a file
+    private static List<String> readLinesFromFile(String filePath) {
+        try {
+            return Files.readAllLines(Paths.get(filePath));
+        } catch (IOException e) {
+            System.out.println(RED + BOLD + "Error reading file: " + e.getMessage() + RESET);
+            return Collections.emptyList();
+        }
+    }
+    
+    // Helper method to write lines to a file
+    private static void writeLinesToFile(String filePath, List<String> lines) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (String line : lines) {
+                writer.write(line);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            System.out.println(RED + BOLD + "Error writing to file: " + e.getMessage() + RESET);
+        }
+    }
+
     private static void appendItemToFile(Item Item) {
         File file = new File(FILE_PATH);
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) {
@@ -984,7 +1100,7 @@ public class PaymentSystem {
     public static List<String> selectMultipleFilesByIndexOrName() {
         List<String> fileNames = listFilesInOutputFolder();
         System.out.print("\n");
-        System.out.print(PURPLE+BOLD+"Enter the file names or indices (e.g. 1, 2, 3): "+RESET);
+        System.out.print(PURPLE+BOLD+"Enter the record number(s) to delete (comma-separated): "+RESET);
         String input = scanner.nextLine();
         if (isCancelCommand(input)) {
             System.out.println(RED+ BOLD + "Operation cancelled." + RESET);
