@@ -68,10 +68,10 @@ public class PaymentSystem {
             System.out.println(BLUE + "9. Create ViewTable" + RESET);
             System.out.println(PURPLE + "10. Drop Table" + RESET);
             System.out.println(GREEN + "11. Delete Table Record" + RESET);
-            System.out.println(YELLOW + "11. View Table Data" + RESET);
-            System.out.println(CYAN + "12. Start Local Server" + RESET);
-            System.out.println(BLUE+ "13. End Local Server" + RESET);
-            System.out.println(RED + "14. Exit" + RESET);
+            System.out.println(YELLOW + "12. View Table Data" + RESET);
+            System.out.println(CYAN + "13. Start Local Server" + RESET);
+            System.out.println(BLUE+ "14. End Local Server" + RESET);
+            System.out.println(RED + "15. Exit" + RESET);
             System.out.print("\n" + BOLD + "Choose an option: " + RESET);
 
             int choice = -1; // Default invalid value
@@ -991,10 +991,77 @@ public class PaymentSystem {
     
         // Display the records (skip the header)
         System.out.println(CYAN + "\nCurrent records in the file:" + RESET);
-        System.out.println(BOLD + records.get(0) + RESET); // Display header
-        for (int i = 1; i < records.size(); i++) {
-            System.out.println((i) + ". " + records.get(i)); // Skip the header in numbering
+        List<String> headers = Arrays.asList(records.get(0).split(",")); // Split the header line into individual headers
+
+        // Display the headers with matching colors
+        System.out.print(YELLOW + "Index, " + RESET);
+        for (int j = 0; j < headers.size(); j++) {
+            String header = headers.get(j);
+
+            // Apply color coding to headers based on column index
+            switch (j % 6) {
+                case 0: // (First column)
+                    System.out.print(YELLOW + header + RESET + ", ");
+                    break;
+                case 1: // (Second column)
+                    System.out.print(GREEN + header + RESET + ", ");
+                    break;
+                case 2: // (Third column)
+                    System.out.print(CYAN + header + RESET + ", ");
+                    break;
+                case 3: // (Fourth column)
+                    System.out.print(BLUE + header + RESET + ", ");
+                    break;
+                case 4: // (Fifth column)
+                    System.out.print(PURPLE + header + RESET + ", ");
+                    break;
+                case 5: // (Sixth column)
+                    System.out.print(RED + header + RESET + ", ");
+                    break;
+                default:
+                    System.out.print(header + ", ");
+                    break;
+            }
         }
+        System.out.println(); // Move to the next line after displaying headers
+
+        for (int i = 1; i < records.size(); i++) {
+            List<String> row = Arrays.asList(records.get(i).split(",")); 
+            
+            // Display the record index
+            System.out.print(YELLOW + i + ". " + RESET);
+            
+            for (int j = 0; j < headers.size(); j++) {
+                String data = j < row.size() ? row.get(j) : "";
+                
+                // Apply color coding to row values based on column index
+                switch (j % 6) {
+                    case 0: // (First column)
+                        System.out.print(YELLOW + data + RESET + ", ");
+                        break;
+                    case 1: // (Second column)
+                        System.out.print(GREEN + data + RESET + ", ");
+                        break;
+                    case 2: // (Third column)
+                        System.out.print(CYAN + data + RESET + ", ");
+                        break;
+                    case 3: // (Fourth column)
+                        System.out.print(BLUE + data + RESET + ", ");
+                        break;
+                    case 4: // (Fifth column)
+                        System.out.print(PURPLE + data + RESET + ", ");
+                        break;
+                    case 5: // (Sixth column)
+                        System.out.print(RED + data + RESET + ", ");
+                        break;
+                    default:
+                        System.out.print(data + ", ");
+                        break;
+                }
+            }
+            System.out.println(); // Move to the next line after a row
+        }
+
     
         // Step 4: Let the user select records to delete
         System.out.println("\n" + YELLOW + BOLD + "Enter the record number(s) to delete (comma-separated): " + RESET);

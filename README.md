@@ -1,7 +1,7 @@
 # Local-Database-Manager
 Java local database manager and data editor that uses CSV files for storing and creating data
 ---
-![Console Preview](image-2.png)
+![Console Preview](image.png)
 ---
 ## Database Schema Design
 ### Tables
