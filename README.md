@@ -33,5 +33,6 @@ Java local database manager and data editor that uses CSV files for storing and 
     - OrderDetailID (Foreign Key)
 
 - `OrderDetailID (Primary Key)` **`Work-in-progress`**
+    - OrderDetailID (Primary Key)
     - ProductID (Foreign Key)
     - PaymentID (Foreign)
