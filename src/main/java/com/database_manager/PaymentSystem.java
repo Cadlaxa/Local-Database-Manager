@@ -11,6 +11,7 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
@@ -18,12 +19,23 @@ import com.sun.net.httpserver.HttpHandler;
 
 import java.net.*;
 
+import org.bytedeco.javacv.*;
+import com.google.zxing.*;
+import com.google.zxing.common.*;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import java.awt.image.BufferedImage;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 public class PaymentSystem {
     private static final String FOLDER = "output/";
     private static final String FILE_PATH = FOLDER + "cart.csv";
     private static final String DEBIT_PAYMENT_FILE_PATH = FOLDER + "debit_payment.csv";
     private static final String CREDIT_PAYMENT_FILE_PATH = FOLDER + "credit_payment.csv";
+    private static final String ORDER_ID_FILE_PATH = FOLDER + "orderID.csv";
+    private static final String ORDER_DETAIL_ID_FILE_PATH = FOLDER + "order_DetailID.csv";
+
     private static final Scanner scanner = new Scanner(System.in);
     private static int nextId = getNextIdFromFile();
 
@@ -431,77 +443,169 @@ public class PaymentSystem {
     private static void processPayment() {
         // Select multiple items using the helper method
         List<String> selectedItemsStrings = selectMultipleItemsByIndexOrName();
-    
+
         if (selectedItemsStrings.isEmpty()) {
             System.out.println(RED + BOLD + "No items selected." + RESET);
             return;
         }
+
         List<Item> allItems = readAllItems();
-    
-        // Create a list to hold the actual selected items
         List<Item> selectedItems = new ArrayList<>();
-    
+
         for (String selectedItem : selectedItemsStrings) {
-            try {
-                int index = Integer.parseInt(selectedItem.trim()) - 1;
-                if (index >= 0 && index < allItems.size()) {
-                    selectedItems.add(allItems.get(index));
-                } else {
-                    System.out.println(RED + "Invalid index: " + selectedItem + RESET);
-                }
-            } catch (NumberFormatException e) {
-                // If it's not an index, try to find it by name
-                Item item = allItems.stream()
-                        .filter(i -> i.getName().equalsIgnoreCase(selectedItem.trim()))
-                        .findFirst()
-                        .orElse(null);
-                if (item != null) {
-                    selectedItems.add(item);
-                } else {
-                    System.out.println(RED + "Item not found: " + selectedItem + RESET);
-                }
+            addItemToSelection(allItems, selectedItem, selectedItems);
+        }
+
+        displaySelectedItems(selectedItems);
+
+        // Process payment for each selected item
+        for (Item item : selectedItems) {
+            PaymentDetails paymentDetails = handlePaymentForItem(item); // Get PaymentDetails object
+            if (!paymentDetails.getOrderID().isEmpty()) {
+                markItemAsPaid(item, paymentDetails); // Pass entire PaymentDetails
             }
         }
+
+        updateItemIdsAfterPayment();
+    }
     
-        // Display the selected items
+    private static void addItemToSelection(List<Item> allItems, String selectedItem, List<Item> selectedItems) {
+        try {
+            int index = Integer.parseInt(selectedItem.trim()) - 1;
+            if (index >= 0 && index < allItems.size()) {
+                selectedItems.add(allItems.get(index));
+            } else {
+                System.out.println(RED + "Invalid index: " + selectedItem + RESET);
+            }
+        } catch (NumberFormatException e) {
+            // If it's not an index, try to find it by name
+            Item item = allItems.stream()
+                                .filter(i -> i.getName().equalsIgnoreCase(selectedItem.trim()))
+                                .findFirst()
+                                .orElse(null);
+            if (item != null) {
+                selectedItems.add(item);
+            } else {
+                System.out.println(RED + "Item not found: " + selectedItem + RESET);
+            }
+        }
+    }
+    
+    private static void displaySelectedItems(List<Item> selectedItems) {
         System.out.println("\n" + CYAN + "You selected the following items: " + RESET);
         for (Item item : selectedItems) {
             System.out.println(BOLD + YELLOW + "ProductID: " + item.getId() + RESET + " | " + item.getName());
         }
-    
-        // Process payment for each selected item
-        for (Item item : selectedItems) {
-            System.out.print("\n" + BOLD + "Select payment method for " + item.getName() + " (1 for Debit, 2 for Credit): " + RESET);
-            int paymentOption = scanner.nextInt();
-            scanner.nextLine();  // consume the newline
-    
-            switch (paymentOption) {
-                case 1:
-                    processDebitPayment(item);
-                    break;
-                case 2:
-                    processCreditPayment(item);
-                    break;
-                default:
-                    System.out.println(RED + BOLD + "Invalid payment option." + RESET);
-                    break;
-            }
-           // removeItemFromCart(item);
-           markItemAsPaid(item);
-        }
-        updateItemIdsAfterPayment();
     }
-
-    private static void markItemAsPaid(Item item) {
+    
+    private static PaymentDetails handlePaymentForItem(Item item) {
+        String orderID = "";
+        String customerName = "";
+        String customerContact = "";
+    
+        System.out.print("\n" + BOLD + "Select payment method for " + item.getName() + " (1 for Debit, 2 for Credit): " + RESET);
+        int paymentOption = scanner.nextInt();
+        scanner.nextLine();  // consume the newline
+    
+        System.out.print("Select payment type (1 for Scan to Pay, 2 for Manual Payment): ");
+        int paymentType = scanner.nextInt();
+        scanner.nextLine();  // consume the newline
+    
+        if (paymentType == 1) {
+            // QR Code scan to extract Name and Contact
+            String[] customerInfo = QRCodeScanner.scanQRCode();
+            if (customerInfo != null) {
+                customerName = customerInfo[0];
+                customerContact = customerInfo[1];
+            }
+        }
+    
+        // If QR code data is not available, prompt for manual input
+        if (customerName.isEmpty() || customerContact.isEmpty()) {
+            System.out.print("Enter customer name: ");
+            customerName = scanner.nextLine();
+            System.out.print("Enter customer contact: ");
+            customerContact = scanner.nextLine();
+        }
+    
+        switch (paymentOption) {
+            case 1:
+                orderID = processDebitPayment(item, paymentType, customerName, customerContact);
+                break;
+            case 2:
+                orderID = processCreditPayment(item, paymentType, customerName, customerContact);
+                break;
+            default:
+                System.out.println(RED + BOLD + "Invalid payment option." + RESET);
+                break;
+        }
+    
+        return new PaymentDetails(orderID, customerName, customerContact, paymentOption);
+    }
+    
+    private static String processDebitPayment(Item item, int paymentType, String customerName, String customerContact) {
+        String paymentMethod = "Debit Card";
+        String orderID = generateOrderID();
+    
+        if (paymentType == 1) {
+            // QR Code scan to extract Name and Contact
+            String[] customerInfo = QRCodeScanner.scanQRCode();
+    
+            if (customerInfo != null && customerInfo.length == 2) {
+                // Extract customer name and contact from the QR code
+                customerName = customerInfo[0];
+                customerContact = customerInfo[1];
+                orderID = generateOrderID();  // Generate order ID based on QR Code data
+                System.out.println("QR Code Scanned: OrderID " + orderID);
+            } else {
+                System.out.println(RED + "Error: QR Code did not return valid customer information." + RESET);
+                return "";  // Return empty string to indicate failure
+            }
+        }
+    
+        // Save payment details along with customer information
+        savePaymentDetails(paymentMethod, item, orderID, customerName, customerContact);
+        System.out.println(GREEN + "Payment processed via Debit Card. Item saved to debit payment file." + RESET);
+    
+        return orderID;
+    }
+    
+    private static String processCreditPayment(Item item, int paymentType, String customerName, String customerContact) {
+        String paymentMethod = "Credit Card";
+        String orderID = generateOrderID();
+    
+        if (paymentType == 1) {
+            // QR Code scan to extract Name and Contact
+            String[] customerInfo = QRCodeScanner.scanQRCode();
+    
+            if (customerInfo != null && customerInfo.length == 2) {
+                // Extract customer name and contact from the QR code
+                customerName = customerInfo[0];
+                customerContact = customerInfo[1];
+                orderID = generateOrderID();  // Generate order ID based on QR Code data
+                System.out.println("QR Code Scanned: OrderID " + orderID);
+            } else {
+                System.out.println(RED + "Error: QR Code did not return valid customer information." + RESET);
+                return "";  // Return empty string to indicate failure
+            }
+        }
+    
+        // Save payment details along with customer information
+        savePaymentDetails(paymentMethod, item, orderID, customerName, customerContact);
+        System.out.println(GREEN + "Payment processed via Credit Card. Item saved to credit payment file." + RESET);
+    
+        return orderID;
+    }
+    
+    private static void markItemAsPaid(Item item, PaymentDetails paymentDetails) {
         List<Item> allItems = readAllItems();
         List<Item> updatedItems = new ArrayList<>();
-    
-        // Add the header first
         List<String> headers = readHeadersFromFile(FILE_PATH);
     
         for (Item i : allItems) {
             if (i.getId() == item.getId()) {
                 i.setIsPaid(true);  // Set the IsPaid field to True for the selected item
+                saveOrderDetails(paymentDetails.getOrderID(), i, paymentDetails.getCustomerName(), paymentDetails.getCustomerContact(), paymentDetails.getpaymentOption());
             }
             updatedItems.add(i);
         }
@@ -521,45 +625,112 @@ public class PaymentSystem {
         }
     }
     
-    // Helper method to remove an item from the cart.csv
-    /*
-    private static void removeItemFromCart(Item item) {
-        List<Item> allItems = readAllItems();
-        List<Item> updatedItems = new ArrayList<>();
-    
-        // Add the header first
-        List<String> headers = readHeadersFromFile(FILE_PATH);
-    
-        for (Item i : allItems) {
-            if (i.getId() != item.getId()) {
-                updatedItems.add(i);  // Add the item to updated list if it doesn't match the item to be removed
+    private static void saveOrderDetails(String orderID, Item item, String customerName, String customerContact, int paymentOption) {
+        String orderDate = generateCurrentTimestamp();
+        String orderDetailID = generateOrderDetailID(item.getId());
+        
+        File file = new File(ORDER_ID_FILE_PATH);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(ORDER_ID_FILE_PATH, true))) {
+            // Write header if file is empty
+            if (file.length() == 0) {
+                writer.write("OrderID,CustomerName,CustomerContact,OrderDate,OrderDetailID");
+                writer.newLine();  // Add header line
             }
-        }
-        // Rewrite the cart.csv file with the updated list
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_PATH))) {
-            writer.write(String.join(",", headers));
+            // Write order details to file
+            writer.write(orderID + "," + customerName + "," + customerContact + "," + orderDate + "," + orderDetailID);
             writer.newLine();
+        } catch (IOException e) {
+            System.out.println(RED + "Error saving order details." + RESET);
+        }
+        
+        // Call saveOrderDetail method, passing paymentMethod for the payment ID generation
+        saveOrderDetail(item, orderDetailID, paymentOption);
+    }
     
-            for (Item i : updatedItems) {
-                writer.write(i.toRawString());
+    private static void saveOrderDetail(Item item, String orderDetailID, int paymentOption) {
+        // Generate the payment ID based on the payment method
+        String paymentID = generatePaymentID(paymentOption == 1 ? "Debit Card" : "Credit Card");
+        
+        File file = new File(ORDER_DETAIL_ID_FILE_PATH);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(ORDER_DETAIL_ID_FILE_PATH, true))) {
+            // If the file is empty, write the header
+            if (file.length() == 0) {
+                writer.write("OrderDetailID,ProductID,PaymentID");
+                writer.newLine();  // Add header line
+            }
+            // Write the order details to the file
+            writer.write(orderDetailID + "," + item.getId() + "," + paymentID);
+            writer.newLine();
+        } catch (IOException e) {
+            System.out.println(RED + "Error saving order detail." + RESET);
+        }
+    }
+    
+    private static void savePaymentDetails(String paymentMethod, Item item, String orderID, String customerName, String customerContact) {
+        String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
+        String orderDetailID = generateOrderDetailID(item.getId());
+    
+        String record = paymentMethod + "," + orderID + "," + orderDetailID;
+    
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
+            File file = new File(filePath);
+            if (file.length() == 0) {
+                writer.write("PaymentMethod,OrderID,OrderDetailID");
                 writer.newLine();
             }
-            System.out.println(GREEN + "Item " + item.getName() + " has been removed from the cart." + RESET);
+    
+            writer.write(record);
+            writer.newLine();
+            System.out.println(GREEN + "Payment processed via " + paymentMethod + ". Payment details saved." + RESET);
         } catch (IOException e) {
-            System.out.println(RED + BOLD + "Error removing item from cart." + RESET);
+            System.out.println(RED + BOLD + "Error saving payment details." + RESET);
         }
     }
-    */
-    private static void processDebitPayment(Item item) {
-        String paymentMethod = "Debit Card";
-        savePaymentDetails(paymentMethod, item);
-        System.out.println(GREEN + "Payment processed via Debit Card. Item saved to debit payment file." + RESET);
+    
+    private static String generateOrderID() {
+        return "ORD-" + generateCurrentTimestamp();
     }
     
-    private static void processCreditPayment(Item item) {
-        String paymentMethod = "Credit Card";
-        savePaymentDetails(paymentMethod, item);
-        System.out.println(GREEN + "Payment processed via Credit Card. Item saved to credit payment file." + RESET);
+    private static String generateOrderDetailID(int productID) {
+        return "OD-" + productID;
+    }
+    
+    private static String generatePaymentID(String paymentMethod) {
+        // Determine the correct file path based on payment method
+        String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
+        int currentPaymentID = 0;
+    
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(filePath));
+    
+            // If the file contains records, process the last record to get the last PaymentID
+            if (lines.size() > 1) { // Skip the header row (if it exists)
+                String lastLine = lines.get(lines.size() - 1); // Get the last line
+                String[] columns = lastLine.split(",");
+                if (columns.length > 1) {
+                    String lastPaymentID = columns[1]; // The second column contains the PaymentID
+                    String[] paymentIDParts = lastPaymentID.split("-");
+                    if (paymentIDParts.length > 1) {
+                        currentPaymentID = Integer.parseInt(paymentIDParts[1]); // Get the numeric part
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println(RED + "Error reading payment records to generate PaymentID." + RESET);
+        } catch (NumberFormatException e) {
+            System.out.println(RED + "Error parsing PaymentID." + RESET);
+        }
+    
+        // Increment the current payment ID and generate the next one
+        currentPaymentID++;
+        
+        if (paymentMethod.equals("Debit Card")) {
+            return "DEB-" + currentPaymentID;
+        } else if (paymentMethod.equals("Credit Card")) {
+            return "CRED-" + currentPaymentID;
+        }
+    
+        return "UNKNOWN";
     }
     
     // Method to update item IDs after all payments
@@ -589,27 +760,7 @@ public class PaymentSystem {
         }
     }
 
-    // Save payment details to the appropriate file
-    private static void savePaymentDetails(String paymentMethod, Item item) {
-        String header = "PaymentMethod,PaymentID,ProductID,DatePayed";;
-        String record = paymentMethod + "," + generatePaymentID(paymentMethod) + "," + item.getId() + "," + generateCurrentTimestamp();
-        String filePath = paymentMethod.equals("Debit Card") ? DEBIT_PAYMENT_FILE_PATH : CREDIT_PAYMENT_FILE_PATH;
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, true))) {
-            // Check if the file is empty before writing the header
-            File file = new File(filePath);
-            if (file.length() == 0) {
-                writer.write(header);
-                writer.newLine();
-            }
-            
-            writer.write(record);
-            writer.newLine();
-        } catch (IOException e) {
-            System.out.println(RED + BOLD + "Error saving payment details." + RESET);
-        }
-    }
-
+/*
     // Method to generate unique PaymentID based on payment method
     private static String generatePaymentID(String paymentMethod) {
         // Read the current file to count the number of records and determine the last PaymentID
@@ -639,6 +790,7 @@ public class PaymentSystem {
         }
         return "UNKNOWN";
     }
+         */
 
     private static void createItem() {
         // Name Input & Cancel Check
@@ -879,7 +1031,7 @@ public class PaymentSystem {
     public static List<String> selectMultipleItemsByIndexOrName() {
         List<String> itemNames = ItemsOnCart();
         System.out.print("\n");
-        System.out.print(PURPLE+BOLD+"Enter the record number(s) to delete (comma-separated): "+RESET);
+        System.out.print(PURPLE+BOLD+"Enter the record number(s) to be choosen (comma-separated): "+RESET);
         String input = scanner.nextLine();
         if (isCancelCommand(input)) {
             System.out.println(RED+ BOLD + "Operation cancelled." + RESET);
@@ -1876,5 +2028,109 @@ class Supplier {
             System.out.println(RED + BOLD + "Error loading suppliers: " + e.getMessage() + RESET);
         }
         return suppliers;
+    }
+}
+
+class PaymentDetails {
+    private String orderID;
+    private String customerName;
+    private String customerContact;
+    private int paymentOption;
+
+    public PaymentDetails(String orderID, String customerName, String customerContact, int paymentOption) {
+        this.orderID = orderID;
+        this.customerName = customerName;
+        this.customerContact = customerContact;
+        this.paymentOption = paymentOption;
+    }
+
+    public String getOrderID() {
+        return orderID;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public String getCustomerContact() {
+        return customerContact;
+    }
+
+    public int getpaymentOption() {
+        return paymentOption;
+    }
+}
+
+
+class QRCodeScanner {
+
+    public static String[] scanQRCode() {
+        // Create an instance of ZXing's MultiFormatReader to decode QR codes
+        MultiFormatReader qrCodeReader = new MultiFormatReader();
+        
+        // Open the camera using JavaCV (index 0 for default webcam)
+        try (OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(0)) {
+            grabber.start();  // Start the webcam
+            
+            // Capture a frame from the camera
+            Frame frame = grabber.grab();
+            
+            // Convert the captured frame to a BufferedImage
+            BufferedImage bufferedImage = convertFrameToBufferedImage(frame);
+            
+            // Decode the QR code using ZXing
+            String qrCodeData = decodeQRCode(bufferedImage, qrCodeReader);
+            
+            if (qrCodeData != null) {
+                // Print the QR code data
+                System.out.println("QR Code Data: " + qrCodeData);
+                
+                // Extract Name and Contact from QR code data using regex
+                String[] customerInfo = extractCustomerInfo(qrCodeData);
+                if (customerInfo != null) {
+                    return customerInfo;  // Return the extracted information
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return null; // Return null if no QR code found or an error occurred
+    }
+
+    private static BufferedImage convertFrameToBufferedImage(Frame frame) {
+        // Convert JavaCV Frame to BufferedImage
+        return Java2DFrameUtils.toBufferedImage(frame);
+    }
+
+    private static String decodeQRCode(BufferedImage bufferedImage, MultiFormatReader qrCodeReader) {
+        try {
+            // Convert BufferedImage to a BinaryBitmap for ZXing decoding
+            LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+            
+            // Decode the QR code using ZXing's MultiFormatReader
+            Result result = qrCodeReader.decode(bitmap);
+            return result.getText(); // Return the decoded QR code text
+        } catch (NotFoundException e) {
+            // No QR code found in the frame
+            return null;
+        }
+    }
+
+    private static String[] extractCustomerInfo(String qrCodeData) {
+        // Assuming the QR Code contains data in the format "Name: <Name> | Contact: <Contact>"
+        // Adjust the regex to match your expected format.
+        Pattern pattern = Pattern.compile("Name: ([^|]+) \\| Contact: ([^|]+)");
+        Matcher matcher = pattern.matcher(qrCodeData);
+        
+        if (matcher.find()) {
+            String name = matcher.group(1);      // Extract the Name
+            String contact = matcher.group(2);   // Extract the Contact
+            return new String[] { name, contact };  // Return extracted information
+        } else {
+            System.out.println("Error: Could not extract Name and Contact from QR Code.");
+            return null;  // Return null if data is not in the expected format
+        }
     }
 }

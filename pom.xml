@@ -13,4 +13,33 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.4.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.jiangyy.core</groupId>
+            <artifactId>zxing</artifactId>
+            <version>1.0.0</version>
+            <type>aar</type>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
+            <version>1.5.6</version>
+        </dependency>
+
+    </dependencies>
 </project>
