@@ -36,3 +36,6 @@ Java local database manager and data editor that uses CSV files for storing and 
     - OrderDetailID (Primary Key)
     - ProductID (Foreign Key)
     - PaymentID (Primary Key)
+---
+### QR code format:
+- `Name: string | Contact: int` example `Name: Jiafei Products | Contact: 09343569`

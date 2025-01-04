@@ -11,7 +11,6 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
 
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
@@ -442,22 +441,31 @@ public class PaymentSystem {
     // Method to process payment
     private static void processPayment() {
         // Select multiple items using the helper method
-        List<String> selectedItemsStrings = selectMultipleItemsByIndexOrName();
-
+        List<String> selectedItemsStrings = NotPaidYet();
+    
         if (selectedItemsStrings.isEmpty()) {
             System.out.println(RED + BOLD + "No items selected." + RESET);
             return;
         }
-
-        List<Item> allItems = readAllItems();
+    
+        // Read all items and filter out those with IsPaid = true
+        List<Item> allItems = readAllItems().stream()
+                .filter(item -> !item.getisPaid()) // Exclude paid items
+                .collect(Collectors.toList());
+    
+        if (allItems.isEmpty()) {
+            System.out.println(GREEN + "No unpaid items available for selection." + RESET);
+            return;
+        }
+    
         List<Item> selectedItems = new ArrayList<>();
-
+    
         for (String selectedItem : selectedItemsStrings) {
             addItemToSelection(allItems, selectedItem, selectedItems);
         }
-
+    
         displaySelectedItems(selectedItems);
-
+    
         // Process payment for each selected item
         for (Item item : selectedItems) {
             PaymentDetails paymentDetails = handlePaymentForItem(item); // Get PaymentDetails object
@@ -465,9 +473,80 @@ public class PaymentSystem {
                 markItemAsPaid(item, paymentDetails); // Pass entire PaymentDetails
             }
         }
-
+    
         updateItemIdsAfterPayment();
     }
+
+    // Helper method to list unpaid item names in the cart
+    public static List<String> UnpaidItems() {
+        List<Item> items = readAllItems();
+
+        if (items.isEmpty()) {
+            System.out.println("\n" + RED + BOLD + "No Items found in the cart." + RESET);
+            return Collections.emptyList();
+        }
+
+        // Filter out items with isPaid = true
+        List<Item> unpaidItems = items.stream()
+                .filter(item -> !item.getisPaid())
+                .collect(Collectors.toList());
+
+        if (unpaidItems.isEmpty()) {
+            System.out.println("\n" + GREEN + BOLD + "All items in the cart are already paid." + RESET);
+            return Collections.emptyList();
+        }
+
+        // Show the list of unpaid items in the cart
+        System.out.println("\n" + BOLD + "--- Available Unpaid Items in Cart ---" + RESET);
+        List<String> itemNames = new ArrayList<>();
+        for (int i = 0; i < unpaidItems.size(); i++) {
+            Item item = unpaidItems.get(i);
+            itemNames.add(item.getName());
+            System.out.println(BOLD + CYAN + (i + 1) + " | " + RESET + BOLD + YELLOW + "ProductID: " + item.getId() + RESET + " | " + item.getName());
+        }
+
+        return itemNames;
+    }
+
+    // Helper method to select unpaid items from the cart
+    public static List<String> NotPaidYet() {
+        List<String> itemNames = UnpaidItems();
+
+        if (itemNames.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        System.out.print("\n");
+        System.out.print(PURPLE + BOLD + "Enter the item index(es) to be chosen (comma-separated): " + RESET);
+        String input = scanner.nextLine();
+
+        if (isCancelCommand(input)) {
+            System.out.println(RED + BOLD + "Operation cancelled." + RESET);
+            return Collections.emptyList();
+        }
+
+        // Parse the input and collect the selected files
+        List<String> selectedFiles = new ArrayList<>();
+        for (String part : input.split(",")) {
+            try {
+                int index = Integer.parseInt(part.trim()) - 1;
+                if (index >= 0 && index < itemNames.size()) {
+                    selectedFiles.add(itemNames.get(index));
+                } else {
+                    System.out.println(RED + "Invalid index: " + part + RESET);
+                }
+            } catch (NumberFormatException e) {
+                if (itemNames.contains(part.trim())) {
+                    selectedFiles.add(part.trim());
+                } else {
+                    System.out.println(RED + "File not found: " + part + RESET);
+                }
+            }
+        }
+        return selectedFiles;
+    }
+
+
     
     private static void addItemToSelection(List<Item> allItems, String selectedItem, List<Item> selectedItems) {
         try {
@@ -503,11 +582,11 @@ public class PaymentSystem {
         String customerName = "";
         String customerContact = "";
     
-        System.out.print("\n" + BOLD + "Select payment method for " + item.getName() + " (1 for Debit, 2 for Credit): " + RESET);
+        System.out.print("\n" + BOLD + CYAN + "Select payment method for " + item.getName() + RESET + BOLD + YELLOW +" (1: Debit, 2: Credit): " + RESET);
         int paymentOption = scanner.nextInt();
         scanner.nextLine();  // consume the newline
     
-        System.out.print("Select payment type (1 for Scan to Pay, 2 for Manual Payment): ");
+        System.out.print(GREEN + BOLD + "Select payment type "+ RESET + BOLD + YELLOW +"(1: Scan to Pay, 2: Manual Payment): "+ RESET);
         int paymentType = scanner.nextInt();
         scanner.nextLine();  // consume the newline
     
@@ -522,9 +601,9 @@ public class PaymentSystem {
     
         // If QR code data is not available, prompt for manual input
         if (customerName.isEmpty() || customerContact.isEmpty()) {
-            System.out.print("Enter customer name: ");
+            System.out.print(BOLD + YELLOW + "Enter customer name: "+ RESET);
             customerName = scanner.nextLine();
-            System.out.print("Enter customer contact: ");
+            System.out.print(GREEN + YELLOW + "Enter customer contact: "+ RESET);
             customerContact = scanner.nextLine();
         }
     
@@ -556,7 +635,7 @@ public class PaymentSystem {
                 customerName = customerInfo[0];
                 customerContact = customerInfo[1];
                 orderID = generateOrderID();  // Generate order ID based on QR Code data
-                System.out.println("QR Code Scanned: OrderID " + orderID);
+                System.out.println(BOLD + CYAN + "QR Code Scanned: OrderID " + orderID + RESET);
             } else {
                 System.out.println(RED + "Error: QR Code did not return valid customer information." + RESET);
                 return "";  // Return empty string to indicate failure
@@ -583,7 +662,7 @@ public class PaymentSystem {
                 customerName = customerInfo[0];
                 customerContact = customerInfo[1];
                 orderID = generateOrderID();  // Generate order ID based on QR Code data
-                System.out.println("QR Code Scanned: OrderID " + orderID);
+                System.out.println(BOLD + CYAN + "QR Code Scanned: OrderID " + orderID + RESET);
             } else {
                 System.out.println(RED + "Error: QR Code did not return valid customer information." + RESET);
                 return "";  // Return empty string to indicate failure
@@ -2061,41 +2140,63 @@ class PaymentDetails {
     }
 }
 
-
 class QRCodeScanner {
+    // ANSI color codes
+    private static final String RESET = "\u001B[0m";
+    private static final String BOLD = "\u001B[1m";
+    private static final String RED = "\u001B[31m";
+    private static final String GREEN = "\u001B[32m";
+    private static final String BLUE = "\u001B[34m";
+    private static final String CYAN = "\u001B[36m";
+    private static final String PURPLE = "\u001B[35m";
+    private static final String YELLOW = "\u001B[33m";
 
     public static String[] scanQRCode() {
+        // Suppress OpenCV warnings
+        System.setProperty("org.bytedeco.javacpp.logger.debug", "false");
+        System.setProperty("org.bytedeco.javacpp.logger.info", "false");
+        System.setProperty("org.bytedeco.javacpp.logger.warn", "false");
+    
         // Create an instance of ZXing's MultiFormatReader to decode QR codes
         MultiFormatReader qrCodeReader = new MultiFormatReader();
-        
-        // Open the camera using JavaCV (index 0 for default webcam)
+        final int MAX_RETRIES = 3; // Maximum number of retry attempts
+    
         try (OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(0)) {
-            grabber.start();  // Start the webcam
-            
-            // Capture a frame from the camera
-            Frame frame = grabber.grab();
-            
-            // Convert the captured frame to a BufferedImage
-            BufferedImage bufferedImage = convertFrameToBufferedImage(frame);
-            
-            // Decode the QR code using ZXing
-            String qrCodeData = decodeQRCode(bufferedImage, qrCodeReader);
-            
-            if (qrCodeData != null) {
-                // Print the QR code data
-                System.out.println("QR Code Data: " + qrCodeData);
-                
-                // Extract Name and Contact from QR code data using regex
-                String[] customerInfo = extractCustomerInfo(qrCodeData);
-                if (customerInfo != null) {
-                    return customerInfo;  // Return the extracted information
+            grabber.start(); // Start the webcam
+            System.out.println(GREEN + BOLD + "\nScanning for QR Code. Please hold it in front of the camera..." + RESET);
+    
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                Frame frame = grabber.grab(); // Capture a frame from the camera
+                if (frame == null) {
+                    System.out.println(BOLD + PURPLE + "No frame captured. Retrying (" + attempt + "/" + MAX_RETRIES + ")..." + RESET);
+                    continue; // Retry if no frame is captured
+                }
+    
+                // Convert the captured frame to a BufferedImage
+                BufferedImage bufferedImage = convertFrameToBufferedImage(frame);
+    
+                // Decode the QR code using ZXing
+                String qrCodeData = decodeQRCode(bufferedImage, qrCodeReader);
+    
+                if (qrCodeData != null) {
+                    // Extract Name and Contact from QR code data
+                    String[] customerInfo = extractCustomerInfo(qrCodeData);
+                    if (customerInfo != null) {
+                        System.out.println(BOLD + YELLOW + "QR Code successfully scanned!" + RESET);
+                        return customerInfo; // Return the extracted information
+                    } else {
+                        System.out.println(BOLD + CYAN + "QR Code scanned, but data format is invalid." + RESET);
+                    }
+                } else {
+                    System.out.println(BOLD + PURPLE + "No QR Code found in the frame. Retrying (" + attempt + "/" + MAX_RETRIES + ")..." + RESET);
                 }
             }
+            System.out.println(RED + "Failed to scan QR Code after " + MAX_RETRIES + " attempts." + RESET);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(BOLD + RED + "An error occurred while scanning the QR Code: " + RESET + e.getMessage());
         }
-        
-        return null; // Return null if no QR code found or an error occurred
+    
+        return null;
     }
 
     private static BufferedImage convertFrameToBufferedImage(Frame frame) {
