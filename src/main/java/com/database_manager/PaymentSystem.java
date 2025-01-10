@@ -34,8 +34,6 @@ import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.opencv.opencv_imgproc.*;
 import com.google.zxing.common.HybridBinarizer;
 
-import java.io.PrintStream;
-
 
 public class PaymentSystem {
     private static final String FOLDER = "output/";
@@ -556,8 +554,6 @@ public class PaymentSystem {
         return selectedFiles;
     }
 
-
-    
     private static void addItemToSelection(List<Item> allItems, String selectedItem, List<Item> selectedItems) {
         try {
             int index = Integer.parseInt(selectedItem.trim()) - 1;
@@ -790,29 +786,34 @@ public class PaymentSystem {
         int currentPaymentID = 0;
     
         try {
-            List<String> lines = Files.readAllLines(Paths.get(filePath));
+            // Check if the `order_DetailID.csv` file exists
+            Path orderDetailsPath = Paths.get(ORDER_DETAIL_ID_FILE_PATH);
+            if (Files.exists(orderDetailsPath)) {
+                List<String> lines = Files.readAllLines(orderDetailsPath);
     
-            // If the file contains records, process the last record to get the last PaymentID
-            if (lines.size() > 1) { // Skip the header row (if it exists)
-                String lastLine = lines.get(lines.size() - 1); // Get the last line
-                String[] columns = lastLine.split(",");
-                if (columns.length > 1) {
-                    String lastPaymentID = columns[1]; // The second column contains the PaymentID
-                    String[] paymentIDParts = lastPaymentID.split("-");
-                    if (paymentIDParts.length > 1) {
-                        currentPaymentID = Integer.parseInt(paymentIDParts[1]); // Get the numeric part
+                // Parse through lines to find the largest PaymentID
+                for (String line : lines) {
+                    String[] columns = line.split(",");
+                    if (columns.length > 2) { // Ensure there are enough columns
+                        String paymentID = columns[2].trim(); // Assuming PaymentID is the 3rd column
+                        if (paymentID.matches("(DEB|CRED)-\\d+")) { // Match the expected format
+                            String[] parts = paymentID.split("-");
+                            int idValue = Integer.parseInt(parts[1]);
+                            currentPaymentID = Math.max(currentPaymentID, idValue); // Track the largest ID
+                        }
                     }
                 }
             }
         } catch (IOException e) {
-            System.out.println(RED + "Error reading payment records to generate PaymentID." + RESET);
+            System.out.println(RED + "Error reading " + ORDER_DETAIL_ID_FILE_PATH + " to check PaymentID." + RESET);
         } catch (NumberFormatException e) {
             System.out.println(RED + "Error parsing PaymentID." + RESET);
         }
     
-        // Increment the current payment ID and generate the next one
+        // Increment the current payment ID
         currentPaymentID++;
-        
+    
+        // Generate the PaymentID based on the payment method
         if (paymentMethod.equals("Debit Card")) {
             return "DEB-" + currentPaymentID;
         } else if (paymentMethod.equals("Credit Card")) {
@@ -1109,9 +1110,10 @@ public class PaymentSystem {
         // Show the list of available items in the cart
         System.out.println("\n" + BOLD + "--- Available Items in Cart ---" + RESET);
         List<String> itemNames = new ArrayList<>();
-        for (Item item : items) {
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
             itemNames.add(item.getName());
-            System.out.println(BOLD + YELLOW + "ProductID: " + item.getId() + RESET + " | " + item.getName());
+            System.out.println(BOLD + CYAN + (i + 1) + " | " + RESET + BOLD + YELLOW + "ProductID: " + item.getId() + RESET + " | " + item.getName());
         }
         
         return itemNames;
