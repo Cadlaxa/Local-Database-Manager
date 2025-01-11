@@ -19,3 +19,4 @@ ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid
 18,keychain,2500.0,jewerly and trinkets,keychain,10,3,false
 19,tote bag (A4 size),700.0,bags,totebag,5,3,false
 20,airtag (4-pack),6490.0,gadgets,gps trackers,1,7,false
+21,Saint Laurent Boots,900000.0,Shoes,Wear,1,4,false
