@@ -18,9 +18,7 @@ import com.sun.net.httpserver.HttpHandler;
 
 import java.net.*;
 
-import org.bytedeco.javacv.*;
 import com.google.zxing.*;
-import com.google.zxing.common.*;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import java.awt.image.BufferedImage;
 import java.util.regex.Matcher;
@@ -31,7 +29,6 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameUtils;
 //import org.bytedeco.opencv.opencv_core.*;
-import org.bytedeco.opencv.opencv_imgproc.*;
 import com.google.zxing.common.HybridBinarizer;
 
 
@@ -2078,11 +2075,11 @@ class Supplier {
                     // Write default content to the new file
                     writer.write("SupplierID,SupplierName,Contact");
                     writer.newLine();
-                    writer.write("1,Lax Bulangerie,0987654321");
+                    writer.write("1,Lax Boulangerie,0987654321");
                     writer.newLine();
-                    writer.write("2,Viernes Freshness,0123456789");
+                    writer.write("2,Viernes' Apothecary,0123456789");
                     writer.newLine();
-                    writer.write("3,Ramos Supplies,0978653421");
+                    writer.write("3,Ramos Warehouse,0978653421");
                     writer.newLine();
                     writer.write("4,SM Supplies,0192837465");
                     writer.newLine();
@@ -2151,7 +2148,7 @@ class PaymentDetails {
         return paymentOption;
     }
 }
-
+/*
 class QRCodeScanner {
     // ANSI color codes
     private static final String RESET = "\u001B[0m";
@@ -2235,7 +2232,7 @@ class QRCodeScanner {
     }
 
     private static String[] extractCustomerInfo(String qrCodeData) {
-        Pattern pattern = Pattern.compile("Name: ([^|]+) \\| Contact: ([^|]+)");
+        Pattern pattern = Pattern.compile("Name:\\s*(.*?)\\s*\\|\\s*Contact:\\s*(.*)");
         Matcher matcher = pattern.matcher(qrCodeData);
 
         if (matcher.find()) {
@@ -2245,6 +2242,102 @@ class QRCodeScanner {
         } else {
             System.out.println("Error: Could not extract Name and Contact from QR Code.");
             return null;
+        }
+    }
+} */
+
+class QRCodeScanner {
+    // ANSI color codes
+    private static final String RESET = "\u001B[0m";
+    private static final String BOLD = "\u001B[1m";
+    private static final String RED = "\u001B[31m";
+    private static final String GREEN = "\u001B[32m";
+    private static final String BLUE = "\u001B[34m";
+    private static final String CYAN = "\u001B[36m";
+    private static final String PURPLE = "\u001B[35m";
+    private static final String YELLOW = "\u001B[33m";
+
+    public static String[] scanQRCode() {
+        // Suppress OpenCV warnings
+        System.setProperty("org.bytedeco.javacpp.logger.debug", "false");
+        System.setProperty("org.bytedeco.javacpp.logger.info", "false");
+        System.setProperty("org.bytedeco.javacpp.logger.warn", "false");
+    
+        // Create an instance of ZXing's MultiFormatReader to decode QR codes
+        MultiFormatReader qrCodeReader = new MultiFormatReader();
+        final int MAX_RETRIES = 3; // Maximum number of retry attempts
+    
+        try (OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(0)) {
+            grabber.start(); // Start the webcam
+            System.out.println(GREEN + BOLD + "\nScanning for QR Code. Please hold it in front of the camera..." + RESET);
+    
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                Frame frame = grabber.grab(); // Capture a frame from the camera
+                if (frame == null) {
+                    System.out.println(BOLD + PURPLE + "No frame captured. Retrying (" + attempt + "/" + MAX_RETRIES + ")..." + RESET);
+                    continue; // Retry if no frame is captured
+                }
+    
+                // Convert the captured frame to a BufferedImage
+                BufferedImage bufferedImage = convertFrameToBufferedImage(frame);
+    
+                // Decode the QR code using ZXing
+                String qrCodeData = decodeQRCode(bufferedImage, qrCodeReader);
+    
+                if (qrCodeData != null) {
+                    // Extract Name and Contact from QR code data
+                    String[] customerInfo = extractCustomerInfo(qrCodeData);
+                    if (customerInfo != null) {
+                        System.out.println(BOLD + YELLOW + "QR Code successfully scanned!" + RESET);
+                        return customerInfo; // Return the extracted information
+                    } else {
+                        System.out.println(BOLD + CYAN + "QR Code scanned, but data format is invalid." + RESET);
+                    }
+                } else {
+                    System.out.println(BOLD + PURPLE + "No QR Code found in the frame. Retrying (" + attempt + "/" + MAX_RETRIES + ")..." + RESET);
+                }
+            }
+            System.out.println(RED + "Failed to scan QR Code after " + MAX_RETRIES + " attempts." + RESET);
+        } catch (Exception e) {
+            System.out.println(BOLD + RED + "An error occurred while scanning the QR Code: " + RESET + e.getMessage());
+        }
+    
+        return null;
+    }
+
+    private static BufferedImage convertFrameToBufferedImage(Frame frame) {
+        // Convert JavaCV Frame to BufferedImage
+        return Java2DFrameUtils.toBufferedImage(frame);
+    }
+
+    private static String decodeQRCode(BufferedImage bufferedImage, MultiFormatReader qrCodeReader) {
+        try {
+            // Convert BufferedImage to a BinaryBitmap for ZXing decoding
+            LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+            BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+            
+            // Decode the QR code using ZXing's MultiFormatReader
+            Result result = qrCodeReader.decode(bitmap);
+            return result.getText(); // Return the decoded QR code text
+        } catch (NotFoundException e) {
+            // No QR code found in the frame
+            return null;
+        }
+    }
+
+    private static String[] extractCustomerInfo(String qrCodeData) {
+        // Assuming the QR Code contains data in the format "Name: <Name> | Contact: <Contact>"
+        // Adjust the regex to match your expected format.
+        Pattern pattern = Pattern.compile("Name: ([^|]+) \\| Contact: ([^|]+)");
+        Matcher matcher = pattern.matcher(qrCodeData);
+        
+        if (matcher.find()) {
+            String name = matcher.group(1);      // Extract the Name
+            String contact = matcher.group(2);   // Extract the Contact
+            return new String[] { name, contact };  // Return extracted information
+        } else {
+            System.out.println("Error: Could not extract Name and Contact from QR Code.");
+            return null;  // Return null if data is not in the expected format
         }
     }
 }
