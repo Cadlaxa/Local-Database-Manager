@@ -1,22 +1,22 @@
 ProductID,ItemName,Price,ItemType,CategoryType,ItemNo,SupplierID,isPaid
-1,pineapple,2715.0,produce,fruit,20,2,false
+1,pineapple (chunks),45.0,canned,fruits,1,4,true
 2,toblerone,246.0,candies,chocolate,3,3,false
 3,strawberry,675.75,produce,fruit,17,4,false
-4,A4 bond paper,75.0,school section,paper,25,5,false
+4,A4 bond paper,75.0,school section,paper,25,5,true
 5,iPhone 16 Pro Max (blue),84990.0,gadgets,smartphone,1,1,false
 6,garlic bread,287.5,bread,bread,5,9,false
 7,apple,105.0,produce,fruit,3,2,false
-8,sweet corn,200.0,crop,grains,5,4,false
+8,sweet corn,200.0,crop,grains,5,4,true
 9,yakult (6 pack),75.0,drinks,probiotics,1,4,false
 10,chocolate crinkles,520.0,pastry,cookies,20,9,false
 11,lemon,60.0,produce,fruit,3,2,false
-12,Samsung S24 Ultra (1TB / 12GB),92299.0,gadgets,smartphone,1,6,false
+12,Samsung S24 Ultra (1TB / 12GB),92299.0,gadgets,smartphone,1,6,true
 13,baguette,625.0,bread,loaf bread,5,9,false
 14,isopropyl alcohol 70%,93.5,hygiene,alcohols,1,4,false
 15,kitkat dark chocolate,286.0,candies,chocolate,8,1,false
 16,dingdong mixed nuts,30.25,nuts,mixed nuts,1,4,false
-17,elmer's glue (transparent),413.2,adhesive,school glue,5,5,false
+17,elmer's glue (transparent),413.2,adhesive,school glue,5,5,true
 18,keychain,2500.0,jewerly and trinkets,keychain,10,3,false
-19,tote bag (A4 size),700.0,bags,totebag,5,3,false
+19,tote bag (A4 size),700.0,bags,totebag,5,3,true
 20,airtag (4-pack),6490.0,gadgets,gps trackers,1,7,false
-21,Saint Laurent Boots,900000.0,Shoes,Wear,1,4,false
+21,clementine,105.00,produce,fruit,7,4,false

@@ -1,0 +1,7 @@
+OrderDetailID,ProductID,PaymentID
+OD-1,1,DEB-1
+OD-17,17,DEB-2
+OD-12,12,CRED-3
+OD-8,8,DEB-4
+OD-4,4,DEB-5
+OD-19,19,DEB-6
